@@ -1,0 +1,33 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_IMAGE = 'aquiib/devops-pipeline-app'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                bat 'docker build -t %DOCKER_IMAGE%:latest .'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                echo 'Tests to be implemented'
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                echo 'Deployment to be implemented'
+            }
+        }
+    }
+}
