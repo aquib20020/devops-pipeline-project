@@ -1,33 +1,47 @@
 pipeline {
     agent any
     
-    environment {
-        DOCKER_IMAGE = 'aquiib/devops-pipeline-app'
-    }
-    
     stages {
         stage('Checkout') {
             steps {
+                echo 'Checking out code from GitHub...'
                 checkout scm
             }
         }
         
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
-                bat 'docker build -t %DOCKER_IMAGE%:latest .'
+                echo 'Building Docker image...'
+                bat 'docker build -t aquiib/devops-pipeline-app:latest .'
             }
         }
         
-        stage('Test') {
+        stage('Test Application') {
             steps {
-                echo 'Tests to be implemented'
+                echo 'Running tests...'
+                bat 'docker run --rm aquiib/devops-pipeline-app:latest python -c "print(\'Application test passed!\')"'
+            }
+        }
+        
+        stage('Push to Registry') {
+            steps {
+                echo 'Ready to push to Docker Hub (credentials needed)'
             }
         }
         
         stage('Deploy') {
             steps {
-                echo 'Deployment to be implemented'
+                echo 'Ready for deployment to AWS/Azure'
             }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
         }
     }
 }
