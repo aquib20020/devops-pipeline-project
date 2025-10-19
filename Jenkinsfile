@@ -53,7 +53,7 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
                 echo "Deploying to AWS EC2..."
-                sshagent(credentials: ['ec2-ssh-key']) {
+                sshagent(credentials: ['ec2-ssh-key-system']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
                             echo "Pulling latest Docker image..."
