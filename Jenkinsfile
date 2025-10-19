@@ -34,7 +34,7 @@ pipeline {
             steps {
                 echo "Testing Docker image..."
                 script {
-                    sh "docker images | grep ${DOCKER_IMAGE}"
+                    bat "docker images | findstr ${DOCKER_IMAGE}"
                 }
             }
         }
