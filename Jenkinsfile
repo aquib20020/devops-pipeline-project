@@ -55,11 +55,15 @@ pipeline {
                 echo "Deploying to AWS EC2..."
                 script {
                     withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key-system', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                        bat """
-                            icacls "%SSH_KEY%" /reset
-                            icacls "%SSH_KEY%" /inheritance:r
-                            icacls "%SSH_KEY%" /grant:r "%USERPROFILE%":"(R)"
-                            ssh -o StrictHostKeyChecking=no -i "%SSH_KEY%" ${EC2_USER}@${EC2_HOST} "docker pull ${DOCKER_IMAGE}:latest && docker stop devops-app || echo Container not running && docker rm devops-app || echo Container not found && docker run -d --name devops-app -p 80:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest && docker ps"
+                        powershell """
+                            \$keyFile = \$env:SSH_KEY
+                            
+                            # Remove inheritance and set proper permissions
+                            icacls \$keyFile /inheritance:r
+                            icacls \$keyFile /grant:r "\${env:USERNAME}:(R)"
+                            
+                            # SSH to EC2 and deploy
+                            ssh -o StrictHostKeyChecking=no -i \$keyFile ${EC2_USER}@${EC2_HOST} "docker pull ${DOCKER_IMAGE}:latest && docker stop devops-app || echo 'Container not running' && docker rm devops-app || echo 'Container not found' && docker run -d --name devops-app -p 80:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest && docker ps"
                         """
                     }
                 }
