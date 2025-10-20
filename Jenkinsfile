@@ -4,7 +4,6 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'aquiib/devops-pipeline-app'
         EC2_HOST = '13.61.7.50'
-        EC2_USER = 'ubuntu'
     }
     
     triggers {
@@ -50,39 +49,25 @@ pipeline {
             }
         }
         
-        stage('Deploy to EC2') {
+        stage('Deployment Notification') {
             steps {
-                echo "Deploying to AWS EC2..."
-                script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key-system', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                        powershell """
-                            \$keyFile = \$env:SSH_KEY
-                            
-                            # Copy key to a permanent location with proper permissions
-                            \$newKeyPath = "C:\\temp\\jenkins-ec2-key.pem"
-                            New-Item -ItemType Directory -Force -Path "C:\\temp" | Out-Null
-                            Copy-Item \$keyFile \$newKeyPath -Force
-                            
-                            # Remove all permissions
-                            icacls \$newKeyPath /inheritance:r
-                            
-                            # Grant only current user read access
-                            \$currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-                            icacls \$newKeyPath /grant:r "\${currentUser}:(R)"
-                            
-                            # Deploy to EC2 using the properly permissioned key
-                            ssh -o StrictHostKeyChecking=no -i \$newKeyPath ${EC2_USER}@${EC2_HOST} "docker pull ${DOCKER_IMAGE}:latest && docker stop devops-app || echo 'Container not running' && docker rm devops-app || echo 'Container not found' && docker run -d --name devops-app -p 80:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest && docker ps"
-                        """
-                    }
-                }
+                echo "Docker image pushed to Docker Hub successfully!"
+                echo "EC2 will auto-pull and deploy within 60 seconds via cron job"
+                echo "Application URL: http://${EC2_HOST}/"
             }
         }
     }
     
     post {
         success {
+            echo "=========================================="
             echo "Pipeline completed successfully!"
-            echo "Application available at: http://${EC2_HOST}/"
+            echo "Image: ${DOCKER_IMAGE}:latest"
+            echo "Registry: Docker Hub"
+            echo "Deployment: Automatic (EC2 cron-based pull)"
+            echo "Production: http://${EC2_HOST}/"
+            echo "Deployment ETA: less than 60 seconds"
+            echo "=========================================="
         }
         failure {
             echo "Pipeline failed! Check logs for details."
