@@ -58,12 +58,20 @@ pipeline {
                         powershell """
                             \$keyFile = \$env:SSH_KEY
                             
-                            # Remove inheritance and set proper permissions
-                            icacls \$keyFile /inheritance:r
-                            icacls \$keyFile /grant:r "\${env:USERNAME}:(R)"
+                            # Copy key to a permanent location with proper permissions
+                            \$newKeyPath = "C:\\temp\\jenkins-ec2-key.pem"
+                            New-Item -ItemType Directory -Force -Path "C:\\temp" | Out-Null
+                            Copy-Item \$keyFile \$newKeyPath -Force
                             
-                            # SSH to EC2 and deploy
-                            ssh -o StrictHostKeyChecking=no -i \$keyFile ${EC2_USER}@${EC2_HOST} "docker pull ${DOCKER_IMAGE}:latest && docker stop devops-app || echo 'Container not running' && docker rm devops-app || echo 'Container not found' && docker run -d --name devops-app -p 80:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest && docker ps"
+                            # Remove all permissions
+                            icacls \$newKeyPath /inheritance:r
+                            
+                            # Grant only current user read access
+                            \$currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+                            icacls \$newKeyPath /grant:r "\${currentUser}:(R)"
+                            
+                            # Deploy to EC2 using the properly permissioned key
+                            ssh -o StrictHostKeyChecking=no -i \$newKeyPath ${EC2_USER}@${EC2_HOST} "docker pull ${DOCKER_IMAGE}:latest && docker stop devops-app || echo 'Container not running' && docker rm devops-app || echo 'Container not found' && docker run -d --name devops-app -p 80:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest && docker ps"
                         """
                     }
                 }
