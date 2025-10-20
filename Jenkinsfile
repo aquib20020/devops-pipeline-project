@@ -56,8 +56,9 @@ pipeline {
                 script {
                     withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key-system', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                         bat """
+                            icacls "%SSH_KEY%" /reset
                             icacls "%SSH_KEY%" /inheritance:r
-                            icacls "%SSH_KEY%" /grant:r "%USERNAME%":"(R)"
+                            icacls "%SSH_KEY%" /grant:r "%USERPROFILE%":"(R)"
                             ssh -o StrictHostKeyChecking=no -i "%SSH_KEY%" ${EC2_USER}@${EC2_HOST} "docker pull ${DOCKER_IMAGE}:latest && docker stop devops-app || echo Container not running && docker rm devops-app || echo Container not found && docker run -d --name devops-app -p 80:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest && docker ps"
                         """
                     }
