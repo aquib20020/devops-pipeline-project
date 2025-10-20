@@ -53,23 +53,12 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
                 echo "Deploying to AWS EC2..."
-                sshagent(credentials: ['ec2-ssh-key-system']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
-                            echo "Pulling latest Docker image..."
-                            docker pull ${DOCKER_IMAGE}:latest
-                            
-                            echo "Stopping old container..."
-                            docker stop devops-app || true
-                            docker rm devops-app || true
-                            
-                            echo "Starting new container..."
-                            docker run -d --name devops-app -p 80:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest
-                            
-                            echo "Deployment complete!"
-                            docker ps | grep devops-app
-                        '
-                    """
+                script {
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key-system', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+                        bat """
+                            ssh -o StrictHostKeyChecking=no -i "%SSH_KEY%" ${EC2_USER}@${EC2_HOST} "docker pull ${DOCKER_IMAGE}:latest && docker stop devops-app || echo Container not running && docker rm devops-app || echo Container not found && docker run -d --name devops-app -p 80:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest && docker ps"
+                        """
+                    }
                 }
             }
         }
