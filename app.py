@@ -42,7 +42,7 @@ HTML_TEMPLATE = """
             margin-bottom: 30px;
         }
         .header h1 {
-            color: #667eea;
+            color: #27ae60;
             font-size: 2.5em;
             margin-bottom: 10px;
         }
