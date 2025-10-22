@@ -1,9 +1,7 @@
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, jsonify, render_template_string, request, send_file
 import qrcode
 import io
 import base64
-import psutil
-import time
 from datetime import datetime
 
 app = Flask(__name__)
@@ -101,6 +99,13 @@ HTML_TEMPLATE = """
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
+        .btn-download {
+            background: #28a745;
+            margin-top: 15px;
+        }
+        .btn-download:hover {
+            background: #218838;
+        }
         .qr-result {
             text-align: center;
             padding: 20px;
@@ -118,7 +123,7 @@ HTML_TEMPLATE = """
         }
         .stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
             margin-top: 20px;
         }
@@ -194,27 +199,20 @@ HTML_TEMPLATE = """
                 <h2 style="color: #667eea; margin-bottom: 20px;">✅ QR Code Generated!</h2>
                 <img id="qrImage" src="" alt="QR Code">
                 <p style="margin-top: 15px; color: #666;">Scan this QR code with your phone camera</p>
+                <button id="downloadBtn" class="btn btn-download">⬇️ Download QR Code</button>
             </div>
         </div>
 
         <div class="card">
-            <h2 style="color: #667eea; margin-bottom: 20px;">📊 System Stats</h2>
+            <h2 style="color: #667eea; margin-bottom: 20px;">📊 Statistics</h2>
             <div class="stats">
                 <div class="stat-box">
                     <div class="stat-label">QR Codes Generated</div>
                     <div class="stat-value" id="qrCount">{{ qr_count }}</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-label">Server Uptime</div>
+                    <div class="stat-label">Server Status</div>
                     <div class="stat-value">Live</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">CPU Usage</div>
-                    <div class="stat-value" id="cpuUsage">--</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Memory</div>
-                    <div class="stat-value" id="memUsage">--</div>
                 </div>
             </div>
         </div>
@@ -223,7 +221,7 @@ HTML_TEMPLATE = """
             <p>🚀 Deployed on AWS EC2 | Monitored with CloudWatch</p>
             <p>
                 <a href="/health">Health Check</a> | 
-                <a href="/metrics">System Metrics</a> | 
+                <a href="/stats">Statistics</a> | 
                 <a href="https://github.com/aquib20020/devops-pipeline-project" target="_blank">GitHub</a>
             </p>
             <p style="margin-top: 10px;">⏰ {{ current_time }}</p>
@@ -231,6 +229,8 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        let currentQRData = null;
+
         // Handle form submission
         document.getElementById('qrForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -251,6 +251,7 @@ HTML_TEMPLATE = """
                 const data = await response.json();
                 
                 if (data.qr_code) {
+                    currentQRData = data.qr_code;
                     qrImage.src = 'data:image/png;base64,' + data.qr_code;
                     resultDiv.classList.add('active');
                     document.getElementById('qrCount').textContent = data.total_generated;
@@ -264,24 +265,17 @@ HTML_TEMPLATE = """
             }
         });
 
-        // Update system metrics
-        async function updateMetrics() {
-            try {
-                const response = await fetch('/metrics');
-                const data = await response.json();
-                
-                document.getElementById('cpuUsage').textContent = data.cpu.usage_percent.toFixed(1) + '%';
-                document.getElementById('memUsage').textContent = data.memory.percent.toFixed(1) + '%';
-            } catch (error) {
-                console.error('Error fetching metrics:', error);
+        // Handle download button
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            if (currentQRData) {
+                const link = document.createElement('a');
+                link.href = 'data:image/png;base64,' + currentQRData;
+                link.download = 'qrcode_' + Date.now() + '.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
-        }
-
-        // Initial metrics load
-        updateMetrics();
-        
-        // Refresh metrics every 5 seconds
-        setInterval(updateMetrics, 5000);
+        });
     </script>
 </body>
 </html>
@@ -327,7 +321,7 @@ def generate_qr():
         # Store in history
         qr_history.append({
             'text': text,
-            'timestamp': time.time()
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
         
         return jsonify({
@@ -345,41 +339,10 @@ def health():
     return jsonify({
         "status": "healthy",
         "service": "QR Code Generator - DevOps Pipeline",
-        "timestamp": time.time(),
+        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         "qr_codes_generated": len(qr_history),
         "message": "All systems operational"
     })
-
-@app.route('/metrics')
-def metrics():
-    """System metrics endpoint"""
-    try:
-        cpu_percent = psutil.cpu_percent(interval=1)
-        memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
-        
-        return jsonify({
-            "cpu": {
-                "usage_percent": cpu_percent,
-                "count": psutil.cpu_count()
-            },
-            "memory": {
-                "total_mb": round(memory.total / (1024 * 1024), 2),
-                "available_mb": round(memory.available / (1024 * 1024), 2),
-                "used_mb": round(memory.used / (1024 * 1024), 2),
-                "percent": memory.percent
-            },
-            "disk": {
-                "total_gb": round(disk.total / (1024 * 1024 * 1024), 2),
-                "used_gb": round(disk.used / (1024 * 1024 * 1024), 2),
-                "free_gb": round(disk.free / (1024 * 1024 * 1024), 2),
-                "percent": disk.percent
-            },
-            "qr_codes_generated": len(qr_history),
-            "timestamp": time.time()
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/stats')
 def stats():
@@ -387,7 +350,7 @@ def stats():
     return jsonify({
         "total_qr_codes": len(qr_history),
         "recent_qr_codes": qr_history[-5:] if qr_history else [],
-        "uptime": "Live",
+        "status": "Live",
         "deployed_on": "AWS EC2",
         "team": "PipelineX"
     })
