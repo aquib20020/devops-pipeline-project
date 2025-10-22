@@ -173,7 +173,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>📱 QR Code Generator v2.0 - AUTOMATED!</h1>
+            <h1>📱 QR Code Generator v2.0 - AUTOMATED!!</h1>
             <p>Create QR codes instantly | Deployed via DevOps Pipeline</p>
         </div>
 
